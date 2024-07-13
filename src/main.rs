@@ -5,6 +5,8 @@ use std::{
 
 use itertools::Itertools;
 
+const VERSION: &str = "HTTP/1.1";
+
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
@@ -22,12 +24,11 @@ fn main() {
                 let req = parse_req(&buf);
 
                 // write the response
-                let version = "Http/1.1";
                 let status = match req.path.as_str() {
                     "/" => Status::Ok,
                     _ => Status::NotFound,
                 };
-                let response = vec![version, status.code(), status.name()].join(" ") + "\r\n\r\n";
+                let response = vec![VERSION, status.code(), status.name()].join(" ") + "\r\n\r\n";
                 println!("writing response {:#?}", response);
                 stream.write_all(response.as_bytes()).unwrap();
                 stream.flush().unwrap();
