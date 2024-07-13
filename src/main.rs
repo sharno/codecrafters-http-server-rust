@@ -1,5 +1,5 @@
 use std::{
-    io::{Read, Write},
+    io::{BufRead, BufReader, Write},
     net::TcpListener,
 };
 
@@ -17,8 +17,8 @@ fn main() {
                 println!("accepted new connection");
 
                 // read the request
-                let mut buf = String::new();
-                stream.read_to_string(&mut buf).unwrap();
+                let mut buf: String = String::new();
+                BufReader::new(&stream).read_line(&mut buf).unwrap();
                 let req = parse_req(&buf);
 
                 // write the response
@@ -28,6 +28,7 @@ fn main() {
                     _ => Status::NotFound,
                 };
                 let response = vec![version, status.code(), status.name()].join(" ") + "\r\n\r\n";
+                println!("writing response {:#?}", response);
                 stream.write_all(response.as_bytes()).unwrap();
                 stream.flush().unwrap();
             }
