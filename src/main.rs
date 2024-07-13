@@ -96,7 +96,6 @@ impl Header {
         };
     }
     pub fn parse(line: &str) -> Self {
-        print!("{}", line);
         let parts = line.trim().split(": ").collect_vec();
         return Header {
             name: parts[0].to_owned(),
@@ -127,10 +126,7 @@ fn parse_req(req: &str) -> Request {
     let headers = lines
         .iter()
         .skip(1)
-        .take_while(|line| {
-            println!("{}", line);
-            **line != CRLF
-        })
+        .take_while(|line| !line.is_empty())
         .map(|line| Header::parse(line))
         .collect_vec();
 
@@ -177,7 +173,7 @@ fn user_agent_handler(req: Request) -> Response {
         .iter()
         .find(|h| h.name == "User-Agent")
         .unwrap()
-        .name
+        .value
         .to_owned();
     return Response {
         status: Status::Ok,
