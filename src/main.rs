@@ -9,7 +9,10 @@ const VERSION: &str = "HTTP/1.1";
 const CRLF: &str = "\r\n";
 
 fn main() {
-    let routes = vec![("/echo/{str}", handle_echo)];
+    let routes = vec![
+        ("/", index_handler as fn(Request) -> Response),
+        ("/echo/{str}", echo_handler as fn(Request) -> Response),
+    ];
 
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
     for stream in listener.incoming() {
@@ -119,7 +122,12 @@ fn matches(pattern: &str, req_path: &str) -> bool {
     return false;
 }
 
-fn handle_echo(req: Request) -> Response {
+trait Route {
+    const PATTERN: &'static str;
+    fn handle(req: Request) -> Response;
+}
+
+fn echo_handler(req: Request) -> Response {
     let path_parts = req.path.split("/").collect_vec();
     let body = path_parts[2].to_owned();
     return Response {
@@ -129,5 +137,13 @@ fn handle_echo(req: Request) -> Response {
             Header::new("Content-Length", &body.len().to_string()),
         ],
         body: body,
+    };
+}
+
+fn index_handler(_req: Request) -> Response {
+    return Response {
+        status: Status::Ok,
+        headers: vec![],
+        body: "".to_owned(),
     };
 }
