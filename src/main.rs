@@ -2,7 +2,7 @@ pub mod http;
 pub mod router;
 pub mod server;
 
-use http::{Request, Response};
+use http::{MimeType, Request, Response};
 use itertools::Itertools;
 use server::Server;
 
@@ -18,7 +18,7 @@ async fn main() {
 fn echo_handler(req: Request) -> Response {
     let path_parts = req.path.split("/").collect_vec();
     let body = path_parts[2].to_owned();
-    Response::ok().body(&body, "text/plain")
+    Response::ok().body(&body, MimeType::TextPlain)
 }
 
 fn index_handler(_req: Request) -> Response {
@@ -29,5 +29,5 @@ fn user_agent_handler(req: Request) -> Response {
     let body = req
         .get_header("User-Agent")
         .expect("Expected to find User-Agent header for a user-agent request");
-    Response::ok().body(&body, "text/plain")
+    Response::ok().body(&body, MimeType::TextPlain)
 }

@@ -60,8 +60,9 @@ impl Response {
         }
     }
 
-    pub fn body(mut self, body: &str, mime_type: &str) -> Self {
-        self.headers.push(Header::new("Content-Type", mime_type));
+    pub fn body(mut self, body: &str, mime_type: MimeType) -> Self {
+        self.headers
+            .push(Header::new("Content-Type", &mime_type.to_string()));
         self.headers
             .push(Header::new("Content-Length", &body.len().to_string()));
         self.body = body.to_owned();
@@ -69,7 +70,7 @@ impl Response {
     }
 
     pub fn to_string(&self) -> String {
-        vec![VERSION, self.status.code(), self.status.name()].join(" ")
+        format!("{} {} {}", VERSION, self.status.code(), self.status.name())
             + CRLF
             + &self
                 .headers
@@ -78,6 +79,19 @@ impl Response {
                 .join("")
             + CRLF
             + &self.body
+    }
+}
+
+#[derive(Debug)]
+pub enum MimeType {
+    TextPlain,
+}
+
+impl MimeType {
+    pub fn to_string(&self) -> &str {
+        match self {
+            Self::TextPlain => "text/plain",
+        }
     }
 }
 
@@ -124,6 +138,6 @@ impl Header {
         };
     }
     pub fn to_string(&self) -> String {
-        return (&self).name.to_owned() + ": " + &self.value + CRLF;
+        return format!("{}: {}{}", self.name, self.value, CRLF);
     }
 }
