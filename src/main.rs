@@ -1,6 +1,6 @@
 use std::{
-    io::{BufRead, BufReader, Write},
-    net::TcpListener,
+    io::{Read, Write},
+    net::{TcpListener, TcpStream},
 };
 
 use itertools::Itertools;
@@ -12,6 +12,7 @@ fn main() {
     let routes = vec![
         ("/", index_handler as fn(Request) -> Response),
         ("/echo/{str}", echo_handler as fn(Request) -> Response),
+        ("/user-agent", user_agent_handler as fn(Request) -> Response),
     ];
 
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
@@ -21,8 +22,7 @@ fn main() {
                 println!("accepted new connection");
 
                 // read the request
-                let mut buf = String::new();
-                BufReader::new(&stream).read_line(&mut buf).unwrap();
+                let buf = tcp_stream_to_string(&mut stream, 1000);
                 let req = parse_req(&buf);
 
                 // handling the request
@@ -53,6 +53,13 @@ fn main() {
             }
         }
     }
+}
+
+fn tcp_stream_to_string(stream: &mut TcpStream, max_length: usize) -> String {
+    let mut buffer = vec![0; max_length];
+    let bytes_read = stream.read(&mut buffer).unwrap();
+    buffer.truncate(bytes_read);
+    String::from_utf8(buffer).unwrap()
 }
 
 enum Status {
@@ -88,6 +95,14 @@ impl Header {
             value: value.to_owned(),
         };
     }
+    pub fn parse(line: &str) -> Self {
+        print!("{}", line);
+        let parts = line.trim().split(": ").collect_vec();
+        return Header {
+            name: parts[0].to_owned(),
+            value: parts[1].to_owned(),
+        };
+    }
     pub fn to_string(&self) -> String {
         return (&self).name.to_owned() + ": " + &self.value + CRLF;
     }
@@ -95,6 +110,7 @@ impl Header {
 
 struct Request {
     path: String,
+    headers: Vec<Header>,
 }
 
 struct Response {
@@ -107,8 +123,20 @@ fn parse_req(req: &str) -> Request {
     let lines = req.split(CRLF).collect_vec();
     let req_line = lines[0].split(" ").collect_vec();
     let path = req_line[1];
+
+    let headers = lines
+        .iter()
+        .skip(1)
+        .take_while(|line| {
+            println!("{}", line);
+            **line != CRLF
+        })
+        .map(|line| Header::parse(line))
+        .collect_vec();
+
     return Request {
         path: path.to_owned(),
+        headers: headers,
     };
 }
 
@@ -120,11 +148,6 @@ fn matches(pattern: &str, req_path: &str) -> bool {
         return true;
     }
     return false;
-}
-
-trait Route {
-    const PATTERN: &'static str;
-    fn handle(req: Request) -> Response;
 }
 
 fn echo_handler(req: Request) -> Response {
@@ -145,5 +168,23 @@ fn index_handler(_req: Request) -> Response {
         status: Status::Ok,
         headers: vec![],
         body: "".to_owned(),
+    };
+}
+
+fn user_agent_handler(req: Request) -> Response {
+    let body = req
+        .headers
+        .iter()
+        .find(|h| h.name == "User-Agent")
+        .unwrap()
+        .name
+        .to_owned();
+    return Response {
+        status: Status::Ok,
+        headers: vec![
+            Header::new("Content-Type", "text/plain"),
+            Header::new("Content-Length", &body.len().to_string()),
+        ],
+        body: body,
     };
 }
