@@ -1,6 +1,7 @@
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
+    sync::Arc,
 };
 
 use itertools::Itertools;
@@ -8,12 +9,13 @@ use itertools::Itertools;
 const VERSION: &str = "HTTP/1.1";
 const CRLF: &str = "\r\n";
 
-fn main() {
-    let routes = vec![
+#[tokio::main]
+async fn main() {
+    let routes = Arc::new(vec![
         ("/", index_handler as fn(Request) -> Response),
         ("/echo/{str}", echo_handler as fn(Request) -> Response),
         ("/user-agent", user_agent_handler as fn(Request) -> Response),
-    ];
+    ]);
 
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
     for stream in listener.incoming() {
@@ -21,38 +23,43 @@ fn main() {
             Ok(mut stream) => {
                 println!("accepted new connection");
 
-                // read the request
-                let buf = tcp_stream_to_string(&mut stream, 1000);
-                let req = parse_req(&buf);
-
-                // handling the request
-                let mut res: Response = Response {
-                    status: Status::NotFound,
-                    headers: vec![],
-                    body: "".to_owned(),
-                };
-                for route in &routes {
-                    if matches(route.0, &req.path) {
-                        res = route.1(req);
-                        break;
-                    }
-                }
-
-                // write the response
-                let response = vec![VERSION, res.status.code(), res.status.name()].join(" ")
-                    + CRLF
-                    + &res.headers.iter().map(|header| header.to_string()).join("")
-                    + CRLF
-                    + &res.body;
-                println!("writing response {:#?}", response);
-                stream.write_all(response.as_bytes()).unwrap();
-                stream.flush().unwrap();
+                let routes = Arc::clone(&routes);
+                tokio::spawn(async move { process(&mut stream, routes) });
             }
             Err(e) => {
                 println!("error: {}", e);
             }
         }
     }
+}
+
+fn process(stream: &mut TcpStream, routes: Arc<Vec<(&str, fn(Request) -> Response)>>) {
+    // read the request
+    let buf = tcp_stream_to_string(stream, 1000);
+    let req = parse_req(&buf);
+
+    // handling the request
+    let mut res: Response = Response {
+        status: Status::NotFound,
+        headers: vec![],
+        body: "".to_owned(),
+    };
+    for route in routes.iter() {
+        if matches(route.0, &req.path) {
+            res = route.1(req);
+            break;
+        }
+    }
+
+    // write the response
+    let response = vec![VERSION, res.status.code(), res.status.name()].join(" ")
+        + CRLF
+        + &res.headers.iter().map(|header| header.to_string()).join("")
+        + CRLF
+        + &res.body;
+    println!("writing response {:#?}", response);
+    stream.write_all(response.as_bytes()).unwrap();
+    stream.flush().unwrap();
 }
 
 fn tcp_stream_to_string(stream: &mut TcpStream, max_length: usize) -> String {
