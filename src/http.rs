@@ -27,32 +27,77 @@ impl Request {
             headers: headers,
         };
     }
+
+    pub fn get_header(&self, name: &str) -> Option<String> {
+        self.headers
+            .iter()
+            .find(|h| h.name == name)
+            .map(|h| h.value.to_owned())
+    }
 }
 
 #[derive(Debug)]
 pub struct Response {
-    pub status: Status,
-    pub headers: Vec<Header>,
-    pub body: String,
+    status: Status,
+    headers: Vec<Header>,
+    body: String,
+}
+
+impl Response {
+    pub fn ok() -> Self {
+        Self {
+            status: Status::OK,
+            headers: Vec::new(),
+            body: String::new(),
+        }
+    }
+
+    pub fn not_found() -> Self {
+        Self {
+            status: Status::NotFound,
+            headers: Vec::new(),
+            body: String::new(),
+        }
+    }
+
+    pub fn body(mut self, body: &str, mime_type: &str) -> Self {
+        self.headers.push(Header::new("Content-Type", mime_type));
+        self.headers
+            .push(Header::new("Content-Length", &body.len().to_string()));
+        self.body = body.to_owned();
+        self
+    }
+
+    pub fn to_string(&self) -> String {
+        vec![VERSION, self.status.code(), self.status.name()].join(" ")
+            + CRLF
+            + &self
+                .headers
+                .iter()
+                .map(|header| header.to_string())
+                .join("")
+            + CRLF
+            + &self.body
+    }
 }
 
 #[derive(Debug)]
 pub enum Status {
-    Ok,
+    OK,
     NotFound,
 }
 
 impl Status {
     pub fn code(&self) -> &str {
         match self {
-            Self::Ok => "200",
+            Self::OK => "200",
             Self::NotFound => "404",
         }
     }
 
     pub fn name(&self) -> &str {
         match self {
-            Self::Ok => "OK",
+            Self::OK => "OK",
             Self::NotFound => "Not Found",
         }
     }

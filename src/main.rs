@@ -2,7 +2,7 @@ pub mod http;
 pub mod router;
 pub mod server;
 
-use http::{Header, Request, Response, Status};
+use http::{Request, Response};
 use itertools::Itertools;
 use server::Server;
 
@@ -18,38 +18,16 @@ async fn main() {
 fn echo_handler(req: Request) -> Response {
     let path_parts = req.path.split("/").collect_vec();
     let body = path_parts[2].to_owned();
-    return Response {
-        status: Status::Ok,
-        headers: vec![
-            Header::new("Content-Type", "text/plain"),
-            Header::new("Content-Length", &body.len().to_string()),
-        ],
-        body: body,
-    };
+    Response::ok().body(&body, "text/plain")
 }
 
 fn index_handler(_req: Request) -> Response {
-    return Response {
-        status: Status::Ok,
-        headers: vec![],
-        body: "".to_owned(),
-    };
+    Response::ok()
 }
 
 fn user_agent_handler(req: Request) -> Response {
     let body = req
-        .headers
-        .iter()
-        .find(|h| h.name == "User-Agent")
-        .unwrap()
-        .value
-        .to_owned();
-    return Response {
-        status: Status::Ok,
-        headers: vec![
-            Header::new("Content-Type", "text/plain"),
-            Header::new("Content-Length", &body.len().to_string()),
-        ],
-        body: body,
-    };
+        .get_header("User-Agent")
+        .expect("Expected to find User-Agent header for a user-agent request");
+    Response::ok().body(&body, "text/plain")
 }

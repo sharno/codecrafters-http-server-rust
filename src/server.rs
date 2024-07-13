@@ -4,10 +4,8 @@ use std::{
     sync::Arc,
 };
 
-use itertools::Itertools;
-
 use crate::{
-    http::{Request, Response, Status, CRLF, VERSION},
+    http::{Request, Response},
     router::Router,
 };
 
@@ -54,18 +52,10 @@ impl Server {
         let res = router
             .get_matching_route(&req.path)
             .map(|route| (route.handler)(req))
-            .unwrap_or(Response {
-                status: Status::NotFound,
-                headers: vec![],
-                body: "".to_owned(),
-            });
+            .unwrap_or(Response::not_found());
 
         // write the response
-        let response = vec![VERSION, res.status.code(), res.status.name()].join(" ")
-            + CRLF
-            + &res.headers.iter().map(|header| header.to_string()).join("")
-            + CRLF
-            + &res.body;
+        let response = res.to_string();
         println!("writing response {:#?}", response);
         stream.write_all(response.as_bytes()).unwrap();
         stream.flush().unwrap();
