@@ -1,6 +1,7 @@
 use itertools::Itertools;
 
-use crate::server::CRLF;
+pub const CRLF: &str = "\r\n";
+pub const VERSION: &str = "HTTP/1.1";
 
 #[derive(Debug)]
 pub struct Request {

@@ -1,34 +1,18 @@
 pub mod http;
-mod server;
-
-use std::{net::TcpListener, sync::Arc};
+pub mod router;
+pub mod server;
 
 use http::{Header, Request, Response, Status};
 use itertools::Itertools;
-use server::process;
+use server::Server;
 
 #[tokio::main]
 async fn main() {
-    let routes = Arc::new(vec![
-        ("/", index_handler as fn(Request) -> Response),
-        ("/echo/{str}", echo_handler as fn(Request) -> Response),
-        ("/user-agent", user_agent_handler as fn(Request) -> Response),
-    ]);
-
-    let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut stream) => {
-                println!("accepted new connection");
-
-                let routes = Arc::clone(&routes);
-                tokio::spawn(async move { process(&mut stream, routes) });
-            }
-            Err(e) => {
-                println!("error: {}", e);
-            }
-        }
-    }
+    let mut server = Server::new(4221);
+    server.get("/", index_handler);
+    server.get("/echo/{str}", echo_handler);
+    server.get("/user-agent", user_agent_handler);
+    server.serve();
 }
 
 fn echo_handler(req: Request) -> Response {
